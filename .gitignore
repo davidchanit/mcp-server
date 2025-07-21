@@ -76,4 +76,11 @@ Thumbs.db
 # Application specific
 application-local.yml
 application-dev.yml
-application-prod.yml 
+application-prod.yml
+
+# SSL certificates and keystores
+*.p12
+*.jks
+*.pem
+*.key
+*.crt 

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Streamable HTTP Transport Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .log-entry.request {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .log-entry.response {
+            background-color: #e8f5e8;
+            border-left: 4px solid #4caf50;
+        }
+        .log-entry.error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>MCP Streamable HTTP Transport Test Client</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>Connection Settings</h2>
+            <div class="form-group">
+                <label for="serverUrl">Server URL:</label>
+                <input type="text" id="serverUrl" value="http://127.0.0.1:8080/mcp" />
+            </div>
+            <div class="form-group">
+                <label for="sessionId">Session ID (optional):</label>
+                <input type="text" id="sessionId" placeholder="Leave empty for new session" />
+            </div>
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div id="connectionStatus" class="status disconnected">
+            Disconnected
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="section">
+            <h2>Send JSON-RPC Request</h2>
+            <div class="form-group">
+                <label for="requestType">Request Type:</label>
+                <select id="requestType" onchange="updateRequestTemplate()">
+                    <option value="initialize">initialize</option>
+                    <option value="tools/list">tools/list</option>
+                    <option value="tools/call">tools/call</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="requestBody">Request Body:</label>
+                <textarea id="requestBody"></textarea>
+            </div>
+            <button onclick="sendRequest()">Send Request</button>
+            <button onclick="sendNotification()">Send Notification</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="section">
+            <h2>Communication Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="log" class="output"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        let eventSource = null;
+        
+        // Request templates
+        const requestTemplates = {
+            'initialize': {
+                jsonrpc: "2.0",
+                id: 1,
+                method: "initialize",
+                params: {
+                    protocolVersion: "2024-11-05",
+                    capabilities: {
+                        tools: {
+                            listChanged: false
+                        },
+                        resources: {
+                            subscribe: false,
+                            listChanged: false
+                        }
+                    },
+                    clientInfo: {
+                        name: "MCP Test Client",
+                        version: "1.0.0"
+                    }
+                }
+            },
+            'tools/list': {
+                jsonrpc: "2.0",
+                id: 2,
+                method: "tools/list",
+                params: {}
+            },
+            'tools/call': {
+                jsonrpc: "2.0",
+                id: 3,
+                method: "tools/call",
+                params: {
+                    name: "calculator",
+                    arguments: {
+                        expression: "2 + 2"
+                    }
+                }
+            }
+        };
+        
+        function updateRequestTemplate() {
+            const requestType = document.getElementById('requestType').value;
+            const template = requestTemplates[requestType];
+            document.getElementById('requestBody').value = JSON.stringify(template, null, 2);
+        }
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        function updateConnectionStatus(connected) {
+            const statusDiv = document.getElementById('connectionStatus');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = `Connected (Session: ${currentSessionId || 'None'})`;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = 'Disconnected';
+            }
+        }
+        
+        async function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const sessionId = document.getElementById('sessionId').value;
+            
+            try {
+                // Test connection with a simple GET request
+                const response = await fetch(serverUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/event-stream',
+                        'Mcp-Session-Id': sessionId || undefined
+                    }
+                });
+                
+                if (response.ok) {
+                    currentSessionId = sessionId || 'auto-generated';
+                    updateConnectionStatus(true);
+                    log('Connected to MCP server', 'response');
+                    
+                    // Store session ID if provided by server
+                    const mcpSessionId = response.headers.get('Mcp-Session-Id');
+                    if (mcpSessionId) {
+                        currentSessionId = mcpSessionId;
+                        document.getElementById('sessionId').value = mcpSessionId;
+                        log(`Session ID received: ${mcpSessionId}`, 'response');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                log(`Connection failed: ${error.message}`, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+        
+        function disconnect() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            currentSessionId = null;
+            updateConnectionStatus(false);
+            log('Disconnected from MCP server', 'info');
+        }
+        
+        async function sendRequest() {
+            if (!currentSessionId) {
+                log('Not connected. Please connect first.', 'error');
+                return;
+            }
+            
+            const serverUrl = document.getElementById('serverUrl').value;
+            const requestBody = document.getElementById('requestBody').value;
+            
+            try {
+                const request = JSON.parse(requestBody);
+                log(`Sending request: ${JSON.stringify(request, null, 2)}`, 'request');
+                
+                const response = await fetch(serverUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json, text/event-stream',
+                        'Mcp-Session-Id': currentSessionId
+                    },
+                    body: requestBody
+                });
+                
+                if (response.ok) {
+                    const contentType = response.headers.get('Content-Type');
+                    
+                    if (contentType && contentType.includes('text/event-stream')) {
+                        log('SSE stream initiated', 'response');
+                        // Handle SSE stream
+                        handleSseStream(response);
+                    } else {
+                        const responseData = await response.json();
+                        log(`Response received: ${JSON.stringify(responseData, null, 2)}`, 'response');
+                    }
+                    
+                    // Update session ID if provided
+                    const mcpSessionId = response.headers.get('Mcp-Session-Id');
+                    if (mcpSessionId && mcpSessionId !== currentSessionId) {
+                        currentSessionId = mcpSessionId;
+                        document.getElementById('sessionId').value = mcpSessionId;
+                        log(`Session ID updated: ${mcpSessionId}`, 'response');
+                    }
+                } else {
+                    const errorText = await response.text();
+                    log(`Error: HTTP ${response.status} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log(`Request failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function sendNotification() {
+            if (!currentSessionId) {
+                log('Not connected. Please connect first.', 'error');
+                return;
+            }
+            
+            const serverUrl = document.getElementById('serverUrl').value;
+            const requestBody = document.getElementById('requestBody').value;
+            
+            try {
+                const notification = JSON.parse(requestBody);
+                // Remove id to make it a notification
+                delete notification.id;
+                const notificationBody = JSON.stringify(notification);
+                
+                log(`Sending notification: ${notificationBody}`, 'request');
+                
+                const response = await fetch(serverUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json, text/event-stream',
+                        'Mcp-Session-Id': currentSessionId
+                    },
+                    body: notificationBody
+                });
+                
+                if (response.status === 202) {
+                    log('Notification accepted (202 Accepted)', 'response');
+                } else {
+                    log(`Notification response: HTTP ${response.status}`, 'response');
+                }
+            } catch (error) {
+                log(`Notification failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function handleSseStream(response) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function readStream() {
+                reader.read().then(({ done, value }) => {
+                    if (done) {
+                        log('SSE stream ended', 'info');
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    lines.forEach(line => {
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            try {
+                                const message = JSON.parse(data);
+                                log(`SSE message: ${JSON.stringify(message, null, 2)}`, 'response');
+                            } catch (e) {
+                                log(`SSE data: ${data}`, 'response');
+                            }
+                        }
+                    });
+                    
+                    readStream();
+                }).catch(error => {
+                    log(`SSE stream error: ${error.message}`, 'error');
+                });
+            }
+            
+            readStream();
+        }
+        
+        // Initialize the page
+        updateRequestTemplate();
+        log('MCP Test Client loaded. Click "Connect" to start.', 'info');
+    </script>
+</body>
+</html> 
