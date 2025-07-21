@@ -368,7 +368,19 @@ public class McpEndpointController {
             emitter.send(heartbeat);
             logger.debug("Sent heartbeat to session: {}", sessionId);
             
-            // Don't send tools list through SSE - let Cursor request it directly
+            // Send tools list through SSE stream after a short delay
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000); // Wait 1 second
+                    JsonRpcRequest toolsListRequest = new JsonRpcRequest(1, "tools/list", Map.of());
+                    JsonRpcResponse toolsListResponse = protocolService.processRequest(toolsListRequest, sessionService.getSession(sessionId).orElse(null));
+                    sendSseMessage(emitter, toolsListResponse, sessionId);
+                    logger.debug("Sent tools list to session: {}", sessionId);
+                } catch (Exception e) {
+                    logger.error("Error sending tools list: {}", e.getMessage());
+                }
+            }).start();
+            
             logger.debug("SSE connection established for session: {}", sessionId);
             
         } catch (IOException e) {
