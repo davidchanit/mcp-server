@@ -98,7 +98,7 @@ public class McpEndpointController {
             
             // For requests, return a direct JSON response
             // If client wants streaming, they should use GET endpoint
-            return createJsonResponse(messages, session);
+                return createJsonResponse(messages, session);
             
         } catch (Exception e) {
             logger.error("Error processing POST request: {}", e.getMessage(), e);
@@ -305,13 +305,13 @@ public class McpEndpointController {
         if (messages.size() == 1) {
             // Single message - return as single response
             JsonRpcMessage message = messages.get(0);
-            if (message instanceof JsonRpcRequest) {
+                        if (message instanceof JsonRpcRequest) {
                 JsonRpcRequest request = (JsonRpcRequest) message;
                 JsonRpcResponse response = protocolService.processRequest(request, session);
-                
-                return ResponseEntity.ok()
+            
+            return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, "application/json")
-                    .header(MCP_SESSION_HEADER, session.getSessionId())
+                .header(MCP_SESSION_HEADER, session.getSessionId())
                     .body(response);
             } else {
                 return ResponseEntity.badRequest()
@@ -320,16 +320,16 @@ public class McpEndpointController {
         } else {
             // Multiple messages - return as array of responses
             List<JsonRpcResponse> responses = new ArrayList<>();
-            for (JsonRpcMessage message : messages) {
-                if (message instanceof JsonRpcRequest) {
+                    for (JsonRpcMessage message : messages) {
+                        if (message instanceof JsonRpcRequest) {
                     JsonRpcRequest request = (JsonRpcRequest) message;
                     JsonRpcResponse response = protocolService.processRequest(request, session);
                     responses.add(response);
-                } else if (message instanceof JsonRpcNotification) {
+                        } else if (message instanceof JsonRpcNotification) {
                     // Process notification but don't include in response
-                    protocolService.processNotification((JsonRpcNotification) message, session);
-                }
-            }
+                            protocolService.processNotification((JsonRpcNotification) message, session);
+                        }
+                    }
             
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, "application/json")

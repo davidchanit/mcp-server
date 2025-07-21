@@ -87,13 +87,17 @@ public class McpService {
         calculator.setName("calculator");
         calculator.setDescription("Performs basic mathematical calculations");
         
-        List<Tool.Parameter> params = new ArrayList<>();
-        params.add(new Tool.Parameter("expression", "string", "Mathematical expression to evaluate", true));
-        calculator.setParameters(params);
-        
-        List<String> required = new ArrayList<>();
-        required.add("expression");
-        calculator.setRequired(required);
+        // Create JSON Schema for calculator input
+        Map<String, Object> calculatorSchema = new HashMap<>();
+        calculatorSchema.put("type", "object");
+        calculatorSchema.put("properties", Map.of(
+            "expression", Map.of(
+                "type", "string",
+                "description", "Mathematical expression to evaluate"
+            )
+        ));
+        calculatorSchema.put("required", List.of("expression"));
+        calculator.setInputSchema(calculatorSchema);
         
         registerTool(calculator);
         
@@ -102,13 +106,17 @@ public class McpService {
         weather.setName("weather");
         weather.setDescription("Gets weather information for a location");
         
-        List<Tool.Parameter> weatherParams = new ArrayList<>();
-        weatherParams.add(new Tool.Parameter("location", "string", "City or location name", true));
-        weather.setParameters(weatherParams);
-        
-        List<String> weatherRequired = new ArrayList<>();
-        weatherRequired.add("location");
-        weather.setRequired(weatherRequired);
+        // Create JSON Schema for weather input
+        Map<String, Object> weatherSchema = new HashMap<>();
+        weatherSchema.put("type", "object");
+        weatherSchema.put("properties", Map.of(
+            "location", Map.of(
+                "type", "string",
+                "description", "City or location name"
+            )
+        ));
+        weatherSchema.put("required", List.of("location"));
+        weather.setInputSchema(weatherSchema);
         
         registerTool(weather);
         
