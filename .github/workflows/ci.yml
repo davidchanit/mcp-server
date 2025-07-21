@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop, 'feature/*', 'fix/*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop, 'feature/*', 'fix/*' ]
 
 env:
   JAVA_VERSION: '17'
