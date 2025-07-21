@@ -339,10 +339,10 @@ public class McpEndpointController {
     }
     
     /**
-     * Creates an SSE emitter with heartbeat.
+     * Creates an SSE emitter with heartbeat and tools list.
      */
     private SseEmitter createSseEmitter(String sessionId, String lastEventId) {
-        SseEmitter emitter = new SseEmitter(30000L); // 60 second timeout
+        SseEmitter emitter = new SseEmitter(30000L); // 30 second timeout
         
         emitter.onCompletion(() -> {
             logger.debug("SSE stream completed for session: {}", sessionId);
@@ -367,8 +367,15 @@ public class McpEndpointController {
                 .name("heartbeat");
             emitter.send(heartbeat);
             logger.debug("Sent heartbeat to session: {}", sessionId);
+            
+            // Send tools list through SSE stream
+            JsonRpcRequest toolsListRequest = new JsonRpcRequest("tools-list", "tools/list", Map.of());
+            JsonRpcResponse toolsListResponse = protocolService.processRequest(toolsListRequest, sessionService.getSession(sessionId).orElse(null));
+            sendSseMessage(emitter, toolsListResponse, sessionId);
+            logger.debug("Sent tools list to session: {}", sessionId);
+            
         } catch (IOException e) {
-            logger.error("Error sending heartbeat: {}", e.getMessage());
+            logger.error("Error sending initial SSE messages: {}", e.getMessage());
         }
         
         // TODO: Handle resumability with lastEventId
