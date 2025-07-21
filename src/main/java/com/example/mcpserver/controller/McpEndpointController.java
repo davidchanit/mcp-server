@@ -369,7 +369,7 @@ public class McpEndpointController {
             logger.debug("Sent heartbeat to session: {}", sessionId);
             
             // Send tools list through SSE stream
-            JsonRpcRequest toolsListRequest = new JsonRpcRequest("tools-list", "tools/list", Map.of());
+            JsonRpcRequest toolsListRequest = new JsonRpcRequest(1, "tools/list", Map.of());
             JsonRpcResponse toolsListResponse = protocolService.processRequest(toolsListRequest, sessionService.getSession(sessionId).orElse(null));
             sendSseMessage(emitter, toolsListResponse, sessionId);
             logger.debug("Sent tools list to session: {}", sessionId);
