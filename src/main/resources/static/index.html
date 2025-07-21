@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server - API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .endpoint {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #fafafa;
+        }
+        .endpoint h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .tool-form {
+            display: grid;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .tool-form input, .tool-form select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .tool-form label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>MCP Server - API Tester</h1>
+    
+    <div class="container">
+        <h2>Server Information</h2>
+        <div class="endpoint">
+            <h3>GET /api/v1/info</h3>
+            <button onclick="getServerInfo()">Get Server Info</button>
+            <div id="serverInfo" class="result"></div>
+        </div>
+        
+        <div class="endpoint">
+            <h3>GET /api/v1/health</h3>
+            <button onclick="getHealth()">Check Health</button>
+            <div id="health" class="result"></div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Tools</h2>
+        <div class="endpoint">
+            <h3>GET /api/v1/tools</h3>
+            <button onclick="listTools()">List Available Tools</button>
+            <div id="tools" class="result"></div>
+        </div>
+        
+        <div class="endpoint">
+            <h3>POST /api/v1/tools/call</h3>
+            <div class="tool-form">
+                <label for="toolName">Tool Name:</label>
+                <select id="toolName" onchange="updateToolForm()">
+                    <option value="">Select a tool...</option>
+                    <option value="calculator">calculator</option>
+                    <option value="weather">weather</option>
+                </select>
+                
+                <div id="calculatorForm" style="display: none;">
+                    <label for="expression">Expression:</label>
+                    <input type="text" id="expression" placeholder="e.g., 2 + 2 * 3">
+                </div>
+                
+                <div id="weatherForm" style="display: none;">
+                    <label for="location">Location:</label>
+                    <input type="text" id="location" placeholder="e.g., New York">
+                </div>
+                
+                <button onclick="callTool()">Execute Tool</button>
+            </div>
+            <div id="toolResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:8080/api/v1';
+        
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                const data = await response.json();
+                return { success: true, data };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        async function getServerInfo() {
+            const result = await makeRequest(`${baseUrl}/info`);
+            document.getElementById('serverInfo').textContent = 
+                result.success ? JSON.stringify(result.data, null, 2) : `Error: ${result.error}`;
+        }
+        
+        async function getHealth() {
+            const result = await makeRequest(`${baseUrl}/health`);
+            document.getElementById('health').textContent = 
+                result.success ? JSON.stringify(result.data, null, 2) : `Error: ${result.error}`;
+        }
+        
+        async function listTools() {
+            const result = await makeRequest(`${baseUrl}/tools`);
+            document.getElementById('tools').textContent = 
+                result.success ? JSON.stringify(result.data, null, 2) : `Error: ${result.error}`;
+        }
+        
+        function updateToolForm() {
+            const toolName = document.getElementById('toolName').value;
+            document.getElementById('calculatorForm').style.display = 'none';
+            document.getElementById('weatherForm').style.display = 'none';
+            
+            if (toolName === 'calculator') {
+                document.getElementById('calculatorForm').style.display = 'block';
+            } else if (toolName === 'weather') {
+                document.getElementById('weatherForm').style.display = 'block';
+            }
+        }
+        
+        async function callTool() {
+            const toolName = document.getElementById('toolName').value;
+            if (!toolName) {
+                alert('Please select a tool');
+                return;
+            }
+            
+            let arguments = {};
+            
+            if (toolName === 'calculator') {
+                const expression = document.getElementById('expression').value;
+                if (!expression) {
+                    alert('Please enter an expression');
+                    return;
+                }
+                arguments.expression = expression;
+            } else if (toolName === 'weather') {
+                const location = document.getElementById('location').value;
+                if (!location) {
+                    alert('Please enter a location');
+                    return;
+                }
+                arguments.location = location;
+            }
+            
+            const payload = {
+                name: toolName,
+                arguments: arguments
+            };
+            
+            const result = await makeRequest(`${baseUrl}/tools/call`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            
+            document.getElementById('toolResult').textContent = 
+                result.success ? JSON.stringify(result.data, null, 2) : `Error: ${result.error}`;
+        }
+        
+        // Load server info on page load
+        window.onload = function() {
+            getServerInfo();
+        };
+    </script>
+</body>
+</html> 
