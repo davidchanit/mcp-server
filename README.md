@@ -1,400 +1,287 @@
-# MCP Server - Java Implementation
+# Spring AI MCP Server
 
-[![CI](https://github.com/david.chan/mcp-server/workflows/Continuous%20Integration/badge.svg)](https://github.com/david.chan/mcp-server/actions/workflows/ci.yml)
-[![CD](https://github.com/david.chan/mcp-server/workflows/Continuous%20Deployment/badge.svg)](https://github.com/david.chan/mcp-server/actions/workflows/cd.yml)
-[![CodeQL](https://github.com/david.chan/mcp-server/workflows/CodeQL/badge.svg)](https://github.com/david.chan/mcp-server/actions/workflows/codeql.yml)
-[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.java.net/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.0-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com/)
+A Model Context Protocol (MCP) server implementation using Spring AI framework with custom HTTP transport. This server provides tools for mathematical calculations and games, accessible via JSON-RPC over HTTP.
 
-A production-ready Model Context Protocol (MCP) server implementation in Java using Spring Boot.
+## Features
 
-## 🚀 Quick Start
+- ✅ **Custom HTTP MCP Server**: Implements MCP protocol over HTTP with JSON-RPC
+- ✅ **Spring AI Framework Integration**: Built on Spring AI MCP framework
+- ✅ **Tool Auto-Discovery**: Automatic tool registration via `@Tool` annotations
+- ✅ **Multiple Transport Support**: HTTP (custom) + SSE (framework-provided)
+- ✅ **Real-time Communication**: Support for both HTTP and SSE transport methods
+- ✅ **Cursor IDE Integration**: Compatible with Cursor's MCP client
 
-### Local Development
-```bash
-# Clone the repository
-git clone https://github.com/david.chan/mcp-server.git
-cd mcp-server
-
-# Run locally
-mvn spring-boot:run
-```
-
-### Docker
-```bash
-# Build and run with Docker
-docker build -t mcp-server .
-docker run -p 8080:8080 mcp-server
-```
-
-### GitHub Container Registry
-```bash
-# Pull from GHCR
-docker pull ghcr.io/david.chan/mcp-server:latest
-docker run -p 8080:8080 ghcr.io/david.chan/mcp-server:latest
-```
+## Quick Start
 
 ### Prerequisites
-- Java 17
-- Maven 3.9+
-- Docker (for Docker testing)
-- curl (for API testing)
 
-### Step 1: Local Build Testing
+- Java 17 or higher
+- Maven 3.6+
+- Cursor IDE (for testing MCP integration)
+
+### 1. Build the Project
 
 ```bash
-# Navigate to your project directory
-cd mcp-server
-
-# Clean and build
-mvn clean package
-
-# Run tests
-mvn test
-
-# Check if JAR is created
-ls -la target/mcp-server-1.0.0.jar
-
-# Verify JAR is executable
-java -jar target/mcp-server-1.0.0.jar --version
+mvn clean package -DskipTests
 ```
 
-### Step 2: Docker Testing
+### 2. Run the Server
 
 ```bash
-# Build Docker image
-docker build -t mcp-server-test .
-
-# Test Docker container
-docker run -d --name mcp-test -p 8080:8080 mcp-server-test
-
-# Wait for container to start
-sleep 10
-
-# Test health endpoint
-curl -f http://localhost:8080/api/v1/health
-
-# Test tools endpoint
-curl -f http://localhost:8080/api/v1/tools
-
-# Clean up
-docker stop mcp-test
-docker rm mcp-test
+java -jar target/mcp-server-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
-### Step 3: API Testing
+The server will start on port 8090.
 
-Start the server first (either locally or with Docker), then test the API:
+### 3. Test the API
+
+Test the MCP endpoint:
 
 ```bash
-# Health check
-curl -f http://localhost:8080/api/v1/health
-
-# List available tools
-curl -f http://localhost:8080/api/v1/tools
-
-# Test calculator tool
-curl -X POST http://localhost:8080/api/v1/tools/call \
+# Test ping
+curl -X POST http://localhost:8090/api/v1/mpc \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "calculator",
-    "arguments": {
-      "expression": "2 + 2 * 3"
-    }
-  }'
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}'
 
-# Test weather tool
-curl -X POST http://localhost:8080/api/v1/tools/call \
+# Test calculate tool
+curl -X POST http://localhost:8090/api/v1/mpc \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "weather",
-    "arguments": {
-      "location": "New York"
-    }
-  }'
-
-# Test invalid tool
-curl -X POST http://localhost:8080/api/v1/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "invalid_tool",
-    "arguments": {}
-  }'
+  -d '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "calculate", "arguments": {"expression": "22+2"}}}'
 ```
 
-### Step 4: Integration Testing
+## Configuration
 
-```bash
-# Run integration tests
-mvn verify
+### Server Configuration (application.yml)
 
-# Run with coverage
-mvn clean test jacoco:report
+```yaml
+server:
+  port: 8090
 
-# View coverage report
-open target/site/jacoco/index.html
+spring:
+  application:
+    name: mcp-server
+
+ai:
+  mcp:
+    server:
+      name: mcp-server # MCP server name
+      version: 0.0.1   # Server version
+
+logging:
+  level:
+    org.springframework.ai: DEBUG
+    com.example.mcpserver: DEBUG
 ```
 
-### Step 5: Performance Testing
+### Cursor IDE Configuration
 
-```bash
-# Test with multiple concurrent requests
-for i in {1..10}; do
-  curl -s http://localhost:8080/api/v1/health &
-done
-wait
+Add this to your Cursor MCP configuration file (`~/.cursor/mcp.json`):
 
-# Test calculator with complex expressions
-curl -X POST http://localhost:8080/api/v1/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "calculator",
-    "arguments": {
-      "expression": "(10 + 5) * 2 / 3 - 1"
-    }
-  }'
-```
-
-### Step 6: CI/CD Pipeline Testing
-
-```bash
-# Make a small change to trigger CI
-echo "" >> README.md
-echo "## 🧪 Testing CI/CD Pipeline" >> README.md
-echo "This section was added to test the GitHub Actions workflow." >> README.md
-
-# Commit and push
-git add README.md
-git commit -m "test: trigger CI/CD pipeline for testing"
-git push origin main
-
-# Create a release tag to test deployment
-git tag v1.0.1
-git push origin v1.0.1
-```
-
-### Step 7: Monitoring and Debugging
-
-```bash
-# Check application logs
-docker logs mcp-test
-
-# Monitor system resources
-docker stats mcp-test
-
-# Test actuator endpoints
-curl http://localhost:8080/actuator/health
-curl http://localhost:8080/actuator/info
-curl http://localhost:8080/actuator/metrics
-
-# Check memory usage
-curl http://localhost:8080/actuator/metrics/jvm.memory.used
-```
-
-## 📊 CI/CD Pipeline
-
-This project uses GitHub Actions for continuous integration and deployment:
-
-- **Continuous Integration**: Runs tests, builds JAR, security scans
-- **Continuous Deployment**: Deploys to GitHub Container Registry on releases
-- **Code Quality**: CodeQL analysis for security vulnerabilities
-- **Dependency Updates**: Automated dependency updates via Dependabot
-
-### Monitoring CI/CD
-
-1. **Go to your GitHub repository**
-2. **Click on "Actions" tab**
-3. **Watch workflow runs in real-time**
-
-### Expected CI/CD Results
-
-✅ **Test & Build Job:**
-- Checkout code
-- Set up JDK 17
-- Cache Maven packages
-- Run tests
-- Build JAR
-- Upload artifacts
-
-✅ **Security Scan Job:**
-- OWASP dependency check
-- Upload security report
-
-✅ **Docker Build Job:**
-- Build Docker image
-- Test Docker container
-- Upload Docker image
-
-## 🔧 Development
-
-### Prerequisites
-- Java 17
-- Maven 3.9+
-- Docker (optional)
-
-### Running Tests
-```bash
-mvn test
-```
-
-### Building
-```bash
-mvn clean package
-```
-
-## 📈 Monitoring
-
-- Health check: `GET /api/v1/health`
-- Metrics: `GET /actuator/metrics`
-- Info: `GET /actuator/info`
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**Tests Fail:**
-```bash
-# Run tests with debug info
-mvn test -X
-
-# Check for specific test failures
-mvn test -Dtest=McpServiceTest
-```
-
-**Docker Build Fails:**
-```bash
-# Test Docker build locally
-docker build -t test-image .
-docker run -d --name test-container -p 8080:8080 test-image
-sleep 10
-curl http://localhost:8080/api/v1/health
-docker stop test-container
-docker rm test-container
-```
-
-**Security Scan Fails:**
-```bash
-# Update dependencies
-mvn versions:use-latest-versions
-mvn clean package
-```
-
-**Port Already in Use:**
-```bash
-# Find process using port 8080
-lsof -i :8080
-
-# Kill process
-kill -9 <PID>
-
-# Or use different port
-docker run -p 8081:8080 mcp-server
-```
-
-## API Endpoints
-
-### List Tools
-```
-GET /api/v1/tools
-```
-
-Returns a list of all available tools with their descriptions and parameters.
-
-### Execute Tool
-```
-POST /api/v1/tools/call
-Content-Type: application/json
-
+```json
 {
-  "name": "calculator",
-  "arguments": {
-    "expression": "2 + 2"
+  "mcpServers": {
+    "spring-ai-mcp-server": {
+      "command": "http",
+      "args": {
+        "url": "http://localhost:8090/api/v1/mpc"
+      }
+    }
   }
 }
 ```
 
-Executes a specific tool with the provided arguments.
-
-### Health Check
-```
-GET /api/v1/health
-```
-
-Returns the server health status.
-
-### Server Information
-```
-GET /api/v1/info
-```
-
-Returns server information and available endpoints.
-
 ## Available Tools
 
-### Calculator
-- **Name**: `calculator`
-- **Description**: Performs basic mathematical calculations
-- **Parameters**: 
-  - `expression` (string, required): Mathematical expression to evaluate
+### Calculator Tools (CalculatorService)
 
-### Weather
-- **Name**: `weather`
-- **Description**: Gets weather information for a location
-- **Parameters**:
-  - `location` (string, required): City or location name
+- **calculate**: Execute basic mathematical expressions
+- **add**: Add two numbers
+- **subtract**: Subtract two numbers
+- **multiply**: Multiply two numbers
+- **divide**: Divide two numbers
+
+### Game Tools (GameService)
+
+- **rockPaperScissors**: Play Rock, Paper, Scissors - randomly returns one of the three options
+- **playRockPaperScissors**: Play Rock, Paper, Scissors against a computer - you choose your move
+- **getRandomChoice**: Get a random choice from Rock, Paper, Scissors
 
 ## Adding New Tools
 
-To add a new tool:
-
-1. Define the tool in `McpService.initializeDefaultTools()`
-2. Implement the tool logic in `ToolService.executeTool()`
-3. Add appropriate tests
+1. Create a new service class with `@Service` annotation
+2. Add `@Tool` annotation to methods
+3. Add `@ToolParam` annotation to parameters
 
 Example:
-```java
-// In McpService.initializeDefaultTools()
-Tool myTool = new Tool();
-myTool.setName("my_tool");
-myTool.setDescription("Description of my tool");
-// ... set parameters
 
-// In ToolService.executeTool()
-case "my_tool":
-    return executeMyTool(arguments);
+```java
+@Service
+public class MyToolsService {
+
+    @Tool(description = "Tool description")
+    public String myTool(@ToolParam(description = "Parameter description") String parameter) {
+        // Tool implementation
+        return "Result: " + parameter;
+    }
+}
 ```
 
-## 🤝 Contributing
+## Project Structure
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```
+src/main/java/com/example/mcpserver/
+├── McpServerApplication.java          # Main application class
+├── controller/
+│   └── McpController.java            # Custom MCP HTTP controller
+├── service/
+│   ├── CalculatorService.java        # Calculator tools service
+│   └── GameService.java              # Game tools service
+└── resources/
+    └── application.yml               # Application configuration
+```
 
-### Testing Before Contributing
+## Transport Methods
+
+This project supports multiple transport methods:
+
+### 1. HTTP Transport (Custom Implementation)
+- **Endpoint**: `POST http://localhost:8090/api/v1/mpc`
+- **Protocol**: JSON-RPC over HTTP
+- **Usage**: Direct HTTP requests, Cursor IDE integration
+- **Response**: Immediate JSON responses
+
+### 2. SSE Transport (Framework-Provided)
+- **Endpoint**: Automatically provided by Spring AI framework
+- **Protocol**: Server-Sent Events for streaming
+- **Usage**: Real-time, persistent connections
+- **Response**: Streaming events
+
+## Dependencies
+
+### Core Dependencies (pom.xml)
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-starter-mcp-server-webflux</artifactId>
+</dependency>
+```
+
+### Repository Configuration
+
+```xml
+<repositories>
+    <repository>
+        <id>spring-snapshots</id>
+        <name>Spring Snapshots</name>
+        <url>https://repo.spring.io/snapshot</url>
+        <releases>
+            <enabled>false</enabled>
+        </releases>
+    </repository>
+    <repository>
+        <name>Central Portal Snapshots</name>
+        <id>central-portal-snapshots</id>
+        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+        <releases>
+            <enabled>false</enabled>
+        </releases>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+    <repository>
+        <id>spring-milestones</id>
+        <name>Spring Milestones</name>
+        <url>https://repo.spring.io/milestone</url>
+        <snapshots>
+            <enabled>false</enabled>
+        </snapshots>
+    </repository>
+</repositories>
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port Already in Use**: Change the port in `application.yml`
+2. **Tools Not Appearing**: Ensure service classes have `@Service` annotation
+3. **API Not Responding**: Check if server is running on correct port
+4. **Cursor Connection Issues**: Verify MCP configuration in `~/.cursor/mcp.json`
+
+### Logs
+
+The application uses SLF4J logging. Check console output for detailed log information.
+
+## Development
+
+### Building for Development
 
 ```bash
-# Run all tests
-mvn clean test
-
-# Check code coverage
-mvn jacoco:report
-
-# Build and test Docker
-docker build -t mcp-server .
-docker run -d --name test-container -p 8080:8080 mcp-server
-sleep 10
-curl http://localhost:8080/api/v1/health
-docker stop test-container
-docker rm test-container
+mvn clean compile
 ```
 
-## 📄 License
+### Running Tests
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+mvn test
+```
 
-## 🔧 CI/CD Fix - Mon Jul 21 14:35:21 HKT 2025
-Fixed artifact upload issues in GitHub Actions workflow.
+### Docker Support
+
+Build Docker image:
+
+```bash
+# Build the JAR first
+mvn clean package -DskipTests
+
+# Build Docker image
+docker build -t mcp-server .
+```
+
+Run with Docker:
+
+```bash
+# Run with Docker
+docker run -p 8090:8090 mcp-server
+
+# Or run with docker-compose
+docker-compose up -d
+```
+
+Test Docker container:
+
+```bash
+curl -X POST http://localhost:8090/api/v1/mpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}'
+```
+
+### CI/CD Testing
+
+For CI/CD pipelines, use the provided test script:
+
+```bash
+# Make script executable
+chmod +x ci-test.sh
+
+# Run the test
+./ci-test.sh
+```
+
+Or manually:
+
+```bash
+docker run -d --name mcp-test -p 8090:8090 mcp-server:latest
+sleep 10
+curl -f -X POST http://localhost:8090/api/v1/mpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}' || exit 1
+docker stop mcp-test
+docker rm mcp-test
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

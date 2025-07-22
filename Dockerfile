@@ -5,10 +5,10 @@ FROM openjdk:17-jdk-slim
 WORKDIR /app
 
 # Copy the JAR file
-COPY target/mcp-server-1.0.0.jar app.jar
+COPY target/mcp-server-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8090
 
 # Set environment variables
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
