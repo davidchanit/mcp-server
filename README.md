@@ -253,10 +253,24 @@ docker-compose up -d
 Test Docker container:
 
 ```bash
+# Test POST endpoint (JSON-RPC)
 curl -X POST http://localhost:8090/api/v1/mpc \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}'
+
+# Test GET endpoint (SSE/Streamable HTTP)
+curl -X GET http://localhost:8090/api/v1/mpc \
+  -H "Accept: text/event-stream"
 ```
+
+### Web Test Client
+
+A web-based test client is available at:
+```
+http://localhost:8090/mcp-client.html
+```
+
+This client provides a user-friendly interface to test all MCP endpoints and tools.
 
 ### CI/CD Testing
 

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .endpoint {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .endpoint h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .info {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .tool-test {
+            margin-top: 20px;
+        }
+        .tool-test input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 MCP Server Test Client</h1>
+    
+    <div class="info">
+        <strong>Server Status:</strong> <span id="serverStatus">Checking...</span><br>
+        <strong>Server URL:</strong> <span id="serverUrl">http://localhost:8090</span>
+    </div>
+
+    <div class="container">
+        <!-- Basic Endpoints -->
+        <div class="card">
+            <h2>📡 Basic Endpoints</h2>
+            
+            <div class="endpoint">
+                <h3>GET /api/v1/mpc (SSE)</h3>
+                <p>Test Server-Sent Events endpoint</p>
+                <button onclick="testGetEndpoint()">Test GET (SSE)</button>
+                <div id="getResponse" class="response"></div>
+            </div>
+
+            <div class="endpoint">
+                <h3>POST /api/v1/mpc (Ping)</h3>
+                <p>Test JSON-RPC ping method</p>
+                <button onclick="testPing()">Test Ping</button>
+                <div id="pingResponse" class="response"></div>
+            </div>
+
+            <div class="endpoint">
+                <h3>POST /api/v1/mpc (Initialize)</h3>
+                <p>Test MCP initialization</p>
+                <button onclick="testInitialize()">Test Initialize</button>
+                <div id="initResponse" class="response"></div>
+            </div>
+
+            <div class="endpoint">
+                <h3>POST /api/v1/mpc (List Tools)</h3>
+                <p>List available tools</p>
+                <button onclick="testListTools()">List Tools</button>
+                <div id="toolsResponse" class="response"></div>
+            </div>
+        </div>
+
+        <!-- Tool Testing -->
+        <div class="card">
+            <h2>🛠️ Tool Testing</h2>
+            
+            <div class="tool-test">
+                <h3>Calculator Tools</h3>
+                
+                <div class="endpoint">
+                    <h4>Calculate Expression</h4>
+                    <input type="text" id="expression" placeholder="Enter expression (e.g., 2+3*4)" value="2+2">
+                    <button onclick="testCalculate()">Calculate</button>
+                    <div id="calculateResponse" class="response"></div>
+                </div>
+
+                <div class="endpoint">
+                    <h4>Add Numbers</h4>
+                    <input type="number" id="addA" placeholder="First number" value="5">
+                    <input type="number" id="addB" placeholder="Second number" value="3">
+                    <button onclick="testAdd()">Add</button>
+                    <div id="addResponse" class="response"></div>
+                </div>
+
+                <div class="endpoint">
+                    <h4>Multiply Numbers</h4>
+                    <input type="number" id="multiplyA" placeholder="First number" value="4">
+                    <input type="number" id="multiplyB" placeholder="Second number" value="7">
+                    <button onclick="testMultiply()">Multiply</button>
+                    <div id="multiplyResponse" class="response"></div>
+                </div>
+            </div>
+
+            <div class="tool-test">
+                <h3>Game Tools</h3>
+                
+                <div class="endpoint">
+                    <h4>Random Rock, Paper, Scissors</h4>
+                    <button onclick="testRandomRPS()">Get Random Choice</button>
+                    <div id="randomRPSResponse" class="response"></div>
+                </div>
+
+                <div class="endpoint">
+                    <h4>Play Rock, Paper, Scissors</h4>
+                    <input type="text" id="playerChoice" placeholder="rock, paper, or scissors" value="rock">
+                    <button onclick="testPlayRPS()">Play</button>
+                    <div id="playRPSResponse" class="response"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const serverUrl = 'http://localhost:8090';
+        
+        // Check server status on load
+        window.onload = function() {
+            checkServerStatus();
+        };
+
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${serverUrl}/api/v1/mpc`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'ping',
+                        params: {}
+                    })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('serverStatus').textContent = '✅ Connected';
+                    document.getElementById('serverStatus').style.color = 'green';
+                } else {
+                    document.getElementById('serverStatus').textContent = '❌ Error';
+                    document.getElementById('serverStatus').style.color = 'red';
+                }
+            } catch (error) {
+                document.getElementById('serverStatus').textContent = '❌ Offline';
+                document.getElementById('serverStatus').style.color = 'red';
+            }
+        }
+
+        async function makeRequest(method, data = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`${serverUrl}/api/v1/mpc`, options);
+                const result = await response.text();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: result
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    status: 0,
+                    data: error.message
+                };
+            }
+        }
+
+        async function testGetEndpoint() {
+            const responseDiv = document.getElementById('getResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            try {
+                const response = await fetch(`${serverUrl}/api/v1/mpc`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/event-stream'
+                    }
+                });
+                
+                const result = await response.text();
+                responseDiv.textContent = `Status: ${response.status}\n\nResponse:\n${result}`;
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}`;
+                responseDiv.className = 'response error';
+            }
+        }
+
+        async function testPing() {
+            const responseDiv = document.getElementById('pingResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'ping',
+                params: {}
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testInitialize() {
+            const responseDiv = document.getElementById('initResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'initialize',
+                params: {
+                    protocolVersion: '2024-11-05'
+                }
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testListTools() {
+            const responseDiv = document.getElementById('toolsResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/list',
+                params: {}
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testCalculate() {
+            const expression = document.getElementById('expression').value;
+            const responseDiv = document.getElementById('calculateResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'calculate',
+                    arguments: {
+                        expression: expression
+                    }
+                }
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testAdd() {
+            const a = parseFloat(document.getElementById('addA').value);
+            const b = parseFloat(document.getElementById('addB').value);
+            const responseDiv = document.getElementById('addResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'add',
+                    arguments: {
+                        a: a,
+                        b: b
+                    }
+                }
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testMultiply() {
+            const a = parseFloat(document.getElementById('multiplyA').value);
+            const b = parseFloat(document.getElementById('multiplyB').value);
+            const responseDiv = document.getElementById('multiplyResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'multiply',
+                    arguments: {
+                        a: a,
+                        b: b
+                    }
+                }
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testRandomRPS() {
+            const responseDiv = document.getElementById('randomRPSResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'getRandomChoice',
+                    arguments: {}
+                }
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+
+        async function testPlayRPS() {
+            const choice = document.getElementById('playerChoice').value;
+            const responseDiv = document.getElementById('playRPSResponse');
+            responseDiv.textContent = 'Testing...';
+            responseDiv.className = 'response';
+            
+            const result = await makeRequest('POST', {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'playRockPaperScissors',
+                    arguments: {
+                        playerChoice: choice
+                    }
+                }
+            });
+            
+            responseDiv.textContent = `Status: ${result.status}\n\nResponse:\n${result.data}`;
+            responseDiv.className = result.success ? 'response success' : 'response error';
+        }
+    </script>
+</body>
+</html> 
