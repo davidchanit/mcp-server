@@ -258,6 +258,30 @@ curl -X POST http://localhost:8090/api/v1/mpc \
   -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}'
 ```
 
+### CI/CD Testing
+
+For CI/CD pipelines, use the provided test script:
+
+```bash
+# Make script executable
+chmod +x ci-test.sh
+
+# Run the test
+./ci-test.sh
+```
+
+Or manually:
+
+```bash
+docker run -d --name mcp-test -p 8090:8090 mcp-server:latest
+sleep 10
+curl -f -X POST http://localhost:8090/api/v1/mpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}' || exit 1
+docker stop mcp-test
+docker rm mcp-test
+```
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
