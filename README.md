@@ -272,6 +272,12 @@ http://localhost:8090/mcp-client.html
 
 This client provides a user-friendly interface to test all MCP endpoints and tools.
 
+**For Production:**
+The client automatically detects the server URL, so it works both locally and on Heroku:
+```
+https://your-app-name.herokuapp.com/mcp-client.html
+```
+
 ### CI/CD Testing
 
 For CI/CD pipelines, use the provided test script:
@@ -294,6 +300,54 @@ curl -f -X POST http://localhost:8090/api/v1/mpc \
   -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}' || exit 1
 docker stop mcp-test
 docker rm mcp-test
+```
+
+## Deployment
+
+### Heroku
+
+Deploy to Heroku using the provided script:
+
+```bash
+# Make script executable
+chmod +x deploy-heroku.sh
+
+# Deploy to Heroku
+./deploy-heroku.sh
+```
+
+Or manually:
+
+```bash
+# Build the application
+mvn clean package -DskipTests
+
+# Create Heroku app (if not exists)
+heroku create
+
+# Set environment variables
+heroku config:set SPRING_PROFILES_ACTIVE=prod
+
+# Deploy
+git push heroku main
+```
+
+### Docker
+
+Build and run with Docker:
+
+```bash
+# Build the JAR first
+mvn clean package -DskipTests
+
+# Build Docker image
+docker build -t mcp-server .
+
+# Run with Docker
+docker run -p 8090:8090 mcp-server
+
+# Or run with docker-compose
+docker-compose up -d
 ```
 
 ## License
