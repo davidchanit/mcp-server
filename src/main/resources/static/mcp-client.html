@@ -88,7 +88,7 @@
     
     <div class="info">
         <strong>Server Status:</strong> <span id="serverStatus">Checking...</span><br>
-        <strong>Server URL:</strong> <span id="serverUrl">http://localhost:8090</span>
+        <strong>Server URL:</strong> <span id="serverUrl">Detecting...</span>
     </div>
 
     <div class="container">
@@ -176,10 +176,13 @@
     </div>
 
     <script>
-        const serverUrl = 'http://localhost:8090';
+        // Dynamically detect server URL based on current location
+        const serverUrl = window.location.protocol + '//' + window.location.host;
         
         // Check server status on load
         window.onload = function() {
+            // Update the displayed server URL
+            document.getElementById('serverUrl').textContent = serverUrl;
             checkServerStatus();
         };
 
