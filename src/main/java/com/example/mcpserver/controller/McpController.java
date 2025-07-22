@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import reactor.core.publisher.Flux;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -312,5 +314,13 @@ public class McpController {
             default:
                 throw new IllegalArgumentException("Unknown tool: " + name);
         }
+    }
+
+    /**
+     * Handle MCP protocol requests via GET for SSE/Streamable HTTP transport
+     */
+    @GetMapping(value = "/api/v1/mpc", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> handleMcpGetRequest() {
+        return Flux.just("data: {\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"protocolVersion\": \"2024-11-05\", \"capabilities\": {\"tools\": {\"listChanged\": false}, \"notifications\": {\"listChanged\": false}}, \"serverInfo\": {\"name\": \"Spring AI MCP Server\", \"version\": \"1.0.0\"}}}\n\n");
     }
 }
