@@ -233,13 +233,29 @@ mvn test
 Build Docker image:
 
 ```bash
+# Build the JAR first
+mvn clean package -DskipTests
+
+# Build Docker image
 docker build -t mcp-server .
 ```
 
 Run with Docker:
 
 ```bash
+# Run with Docker
 docker run -p 8090:8090 mcp-server
+
+# Or run with docker-compose
+docker-compose up -d
+```
+
+Test Docker container:
+
+```bash
+curl -X POST http://localhost:8090/api/v1/mpc \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}}'
 ```
 
 ## License
